@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ol-mapbox-providers — Giro3D (custom)</title>
+    <style>
+      :root {
+        --header-background: #16343d;
+        --header-text: #f3f7f8;
+      }
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+      }
+      body {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        background: #0a3b59;
+        font-family: "Segoe UI", sans-serif;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 48px;
+        padding: 0 16px;
+        box-sizing: border-box;
+        background: var(--header-background);
+        color: var(--header-text);
+        font-size: 13px;
+      }
+      header h1 {
+        margin: 0 auto 0 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .filter {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .filter select {
+        padding: 4px 6px;
+        border: 1px solid #506b73;
+        border-radius: 3px;
+        background: white;
+        color: #16343d;
+        font: inherit;
+        font-size: 12px;
+        max-width: 170px;
+      }
+      .terrain-toggle {
+        padding: 5px 10px;
+        border: 1px dashed #506b73;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--header-text);
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .terrain-toggle:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .terrain-toggle:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      #globe {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+      }
+      .badge {
+        position: absolute;
+        z-index: 2;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 12px;
+        background: rgba(22, 52, 61, 0.9);
+        color: #fff;
+        font: 600 13px "Segoe UI", sans-serif;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>giro3d</h1>
+      <label class="filter" for="tile-filter-select">
+        tiles:
+        <select id="tile-filter-select">
+          <option value="">all source-layers</option>
+        </select>
+      </label>
+      <label class="filter" for="label-filter-select">
+        labels:
+        <select id="label-filter-select">
+          <option value="">all source-layers</option>
+          <option value="__none__">no labels</option>
+        </select>
+      </label>
+      <button id="terrain-toggle" class="terrain-toggle" type="button" disabled>activate 3d terrain</button>
+    </header>
+
+    <div id="globe"></div>
+
+    <script src="lib/ol/ol.js"></script>
+    <script src="lib/ol-mapbox-3d-provider.js"></script>
+    <script src="lib/giro3d/giro3d.min.js"></script>
+    <script src="lib/giro3d/giro3d-mapbox-adapter.js"></script>
+    <script src="lib/ol-mapbox-globes.js"></script>
+    <script src="lib/ol-mapbox-additional-code-giro3d.js"></script>
+
+    <script>
+      (function () {
+        const provider = new OlMapbox3DProvider({
+          style: 'https://tiles.openfreemap.org/styles/liberty',
+          workerUrl: 'lib/ol-mapbox-tile-worker.js',
+          labelWorkerUrl: 'lib/ol-mapbox-label-worker.js',
+          log: false,
+          workerLog: false
+        });
+        const deviceProfile = OlMapbox3DProvider.getDeviceProfile();
+
+        // ---- Source-layer combos -------------------------------------------
+        // "tiles"  -> which source-layer(s) are drawn INTO the tile bitmaps.
+        // "labels" -> which source-layer(s) are returned as billboards.
+        function tileFilter() {
+          const select = document.getElementById('tile-filter-select');
+          return select && select.value ? [select.value] : null;
+        }
+        function labelFilter() {
+          const select = document.getElementById('label-filter-select');
+          const value = select ? select.value : '';
+          return (!value || value === '__none__') ? null : [value];
+        }
+        function labelsDisabled() {
+          const select = document.getElementById('label-filter-select');
+          return !!select && select.value === '__none__';
+        }
+        function populateFilter(selectId) {
+          const select = document.getElementById(selectId);
+          if (!select) return;
+          (function fill() {
+            if (!provider.sourceLayers || !provider.sourceLayers.length) {
+              setTimeout(fill, 250);
+              return;
+            }
+            provider.sourceLayers.forEach(function (name) {
+              const option = document.createElement('option');
+              option.value = name;
+              option.textContent = name;
+              select.appendChild(option);
+            });
+          })();
+        }
+        populateFilter('tile-filter-select');
+        populateFilter('label-filter-select');
+
+        // Same options for create() and activateTerrain()/deactivateTerrain().
+        const options = {
+          target: 'globe',
+          provider: provider,
+          deviceProfile: deviceProfile,
+          tileFilter: tileFilter,
+          labelFilter: labelFilter,
+          initialView: [7.3203, 45.7378]
+        };
+
+        let state = null;
+        let terrainOn = false;
+        const terrainButton = document.getElementById('terrain-toggle');
+        function setTerrainButton() {
+          terrainButton.textContent = terrainOn
+            ? 'deactivate 3d terrain'
+            : 'activate 3d terrain';
+        }
+        terrainButton.addEventListener('click', function () {
+          if (!state) {
+            return;
+          }
+          const toggle = terrainOn
+            ? OlMapbox3DGlobe.deactivateTerrain
+            : OlMapbox3DGlobe.activateTerrain;
+          toggle('giro3d', state, options).then(function (next) {
+            if (next) {
+              state = next; // OpenGlobus returns a recreated globe
+            }
+            terrainOn = !terrainOn;
+            setTerrainButton();
+          }).catch(function (error) {
+            console.error('Unable to toggle the Giro3D terrain.', error);
+          });
+        });
+
+        OlMapbox3DGlobe.create('giro3d', options).then(function (s) {
+          state = s;
+          terrainButton.disabled = false;
+        }).catch(function (error) {
+          console.error('Unable to initialize the Giro3D globe.', error);
+        });
+
+        // ---- Combo listeners ----------------------------------------------
+        // Every filter change empties the provider caches so stale tiles/labels
+        // are never served for the new filter.
+        document.getElementById('label-filter-select').addEventListener('change', function () {
+          const disabled = labelsDisabled();
+          const layers = labelFilter();
+          provider.invalidate();
+          // Street/river names are baked INTO the tile bitmap by ol-mapbox-style,
+          // so the tile imagery must honour the label filter too.
+          if (typeof provider.setLabelBake === 'function') {
+            provider.setLabelBake(layers, !disabled);
+          }
+          if (state && state.labelLayer) {
+            state.labelLayer.setEnabled(!disabled);
+            if (!disabled) {
+              state.labelLayer.setLayers(layers);
+              if (typeof state.refreshLabels === 'function') {
+                state.refreshLabels();
+              }
+            }
+          }
+          if (state && typeof state.setTileFilter === 'function') {
+            state.setTileFilter(tileFilter());
+          }
+        });
+
+        document.getElementById('tile-filter-select').addEventListener('change', function () {
+          const layers = tileFilter();
+          provider.invalidate();
+          if (state && typeof state.setTileFilter === 'function') {
+            state.setTileFilter(layers);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

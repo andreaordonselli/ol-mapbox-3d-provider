@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ol-mapbox-providers</title>
+    <link rel="stylesheet" href="lib/ol/ol.css">
+
+    <style>
+      :root {
+        --page-background: #e8edf0;
+        --panel-background: #f9fbfc;
+        --panel-border: #b8c5cb;
+        --header-background: #16343d;
+        --header-text: #f3f7f8;
+        --label-background: rgba(22, 52, 61, 0.9);
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+        background: var(--page-background);
+        color: #1d2d33;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        min-height: 56px;
+        padding: 0 24px;
+        box-sizing: border-box;
+        background: var(--header-background);
+        color: var(--header-text);
+      }
+
+      header h1 {
+        width: 100%;
+        margin: 0;
+        text-align: center;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      /* Label source-layer filter: applies to the billboards of ALL 3 globes. */
+      .label-filter {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .label-filter select {
+        padding: 4px 6px;
+        border: 1px solid #506b73;
+        border-radius: 3px;
+        background: white;
+        color: #16343d;
+        font: inherit;
+        font-size: 12px;
+        max-width: 160px;
+        margin-right: 6px;
+      }
+
+      body {
+        overflow: hidden;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-rows: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        min-height: 0;
+        padding: 12px;
+        box-sizing: border-box;
+      }
+
+      .map-panel {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid var(--panel-border);
+        background: var(--panel-background);
+        box-shadow: 0 2px 8px rgba(22, 52, 61, 0.12);
+      }
+
+      .map-viewport {
+        width: 100%;
+        height: 100%;
+        min-width: 0;
+        min-height: 0;
+      }
+
+      .map-label {
+        position: absolute;
+        z-index: 2;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 12px;
+        background: var(--label-background);
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        pointer-events: none;
+      }
+
+      .map-controls {
+        position: absolute;
+        z-index: 3;
+        top: 10px;
+        left: 10px;
+        display: flex;
+        gap: 6px;
+      }
+
+      .map-controls button {
+        border: 1px solid #506b73;
+        padding: 6px 9px;
+        background: white;
+        color: #16343d;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+      }
+
+      .map-controls button:hover {
+        background: #dce8eb;
+      }
+
+      .map-controls button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        background: #eef2f4;
+        color: #7a8b91;
+      }
+
+      .map-controls.map-controls-terrain {
+        top: 48px;
+      }
+
+      .map-controls-terrain button {
+        border-style: dashed;
+      }
+
+      .placeholder {
+        display: grid;
+        place-items: center;
+        height: 100%;
+        color: #60747b;
+        font-size: 14px;
+      }
+
+      /* Stack the renderers vertically on narrow screens. */
+      @media (max-width: 800px) {
+        body {
+          overflow: auto;
+        }
+
+        main {
+          grid-template-columns: 1fr;
+          grid-template-rows: repeat(4, minmax(260px, 1fr));
+        }
+
+        body {
+          grid-template-rows: auto auto;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <h1>ol-mapbox-providers</h1>
+      <label class="label-filter" for="tile-filter-select">
+        tiles:
+        <select id="tile-filter-select">
+          <option value="">all source-layers</option>
+        </select>
+      </label>
+      <label class="label-filter" for="label-filter-select">
+        labels:
+        <select id="label-filter-select">
+          <option value="">all source-layers</option>
+          <option value="__none__">no labels</option>
+        </select>
+      </label>
+    </header>
+
+    <main>
+      <section class="map-panel" aria-label="OpenLayers 2D map panel">
+        <div class="map-label">ol 2d</div>
+        <div class="map-controls">
+          <button id="activate-giro3d" type="button">activate giro3d</button>
+          <button id="activate-cesium" type="button">activate cesium</button>
+          <button id="activate-openglobus" type="button">activate openglobus</button>
+        </div>
+        <div class="map-controls map-controls-terrain">
+          <button id="activate-giro3d-terrain" type="button" disabled>activate giro3d terrain</button>
+          <button id="activate-cesium-terrain" type="button" disabled>activate cesium terrain</button>
+          <button id="activate-openglobus-terrain" type="button" disabled>activate openglobus terrain</button>
+        </div>
+        <div id="openlayers-map" class="map-viewport"></div>
+      </section>
+
+      <section class="map-panel" aria-label="Giro3D map panel">
+        <div class="map-label">giro3d</div>
+        <div id="giro3d-globe" class="map-viewport">
+          <div class="placeholder">not initialized</div>
+        </div>
+      </section>
+
+      <section class="map-panel" aria-label="Cesium map panel">
+        <div class="map-label">cesium</div>
+        <div id="cesium-globe" class="map-viewport">
+          <div class="placeholder">not initialized</div>
+        </div>
+      </section>
+
+      <section class="map-panel" aria-label="OpenGlobus map panel">
+        <div class="map-label">openglobus</div>
+        <div id="openglobus-globe" class="map-viewport">
+          <div class="placeholder">not initialized</div>
+        </div>
+      </section>
+    </main>
+
+    <!--
+      The UMD bundles are loaded before the application code:
+      1. ol.js defines the global OpenLayers namespace;
+      2. olms.js defines the Mapbox Style adapter;
+      3. Cesium.js defines the Cesium namespace;
+      4. olcesium.js defines the olcs namespace;
+      5. giro3d.min.js defines the Giro3D namespace;
+      6. giro3d-mapbox-adapter.js defines Giro3DMapboxTileAdapter;
+      7. ol-mapbox-globes.js defines the shared OlMapbox3DGlobe core;
+      8. ol-mapbox-additional-code-{giro3d,cesium,openglobus}.js register each
+         engine's adapter into that core.
+    -->
+    <script src="lib/ol/ol.js"></script>
+    <script src="lib/ol-mapbox-style/olms.js"></script>
+    <script>window.CESIUM_BASE_URL = 'lib/cesium/';</script>
+    <script src="lib/cesium/Cesium.js"></script>
+    <script src="lib/cesium/olcesium.js"></script>
+    <script src="lib/ol-mapbox-3d-provider.js"></script>
+    <script src="lib/giro3d/giro3d.min.js"></script>
+    <script src="lib/giro3d/giro3d-mapbox-adapter.js"></script>
+    <script src="lib/ol-mapbox-globes.js"></script>
+    <script src="lib/ol-mapbox-additional-code-giro3d.js"></script>
+    <script src="lib/ol-mapbox-additional-code-cesium.js"></script>
+    <script src="lib/ol-mapbox-additional-code-openglobus.js"></script>
+
+    <script>
+      // ---------------------------------------------------------------------
+      // Demo orchestration. The heavy lifting lives in shared modules:
+      //   lib/ol-mapbox-3d-provider.js -> worker tile/label pipeline (one shared
+      //                                 provider for the 3 globes)
+      //   lib/ol-mapbox-globes.js -> shared OlMapbox3DGlobe core (dispatcher)
+      //   lib/ol-mapbox-additional-code-{engine}.js -> per-engine adapters
+      // ---------------------------------------------------------------------
+
+      // The Aosta Valley (Italy): alpine relief that shows well on the 3D globes.
+      const aostaCoordinates = [7.3203, 45.7378];
+
+      // The 2D reference map (also the style source for the globes).
+      const openlayersMap = new ol.Map({
+        target: 'openlayers-map',
+        view: new ol.View({
+          center: ol.proj.fromLonLat(aostaCoordinates),
+          zoom: 10,
+          minZoom: 2,
+          maxZoom: 20
+        })
+      });
+      olms.apply(openlayersMap, 'https://tiles.openfreemap.org/styles/liberty')
+        .catch(function (error) {
+          console.error('Unable to apply the OpenFreeMap Liberty style.', error);
+        });
+
+      let giro3dState = null;
+      let cesiumState = null;
+      let openglobusState = null;
+
+      // Auto-tuned worker pool / resolution / antialias for this device.
+      const deviceProfile = OlMapbox3DProvider.getDeviceProfile();
+      console.log('[demo] device profile:',
+        '| pixelRatio:', deviceProfile.pixelRatio,
+        '| workers:', deviceProfile.workerCount,
+        '| labelWorkers:', deviceProfile.labelWorkerCount,
+        '| antialias:', deviceProfile.antialias,
+        '| webgl:', OlMapbox3DGlobe.getWebGLSupport());
+
+      // A/B test harness: append URL params to override the auto-tuned
+      // profile WITHOUT touching code, then reload — e.g.
+      //   ?workers=2&labelWorkers=2&buffer=0&resolution=256&cache=16
+      // `workers` = tile-composition workers; `labelWorkers` = whole-view
+      // label workers (each globe is pinned to one, so 3 globes can render
+      // labels in parallel). More tile workers parallelize composition (it is
+      // CPU-bound), but each worker holds a full ol-mapbox-style map in memory,
+      // so on a phone test ?workers=2 against the default before adopting it.
+      // The console logs the active overrides on load.
+      function urlOverrides() {
+        const params = new URLSearchParams(location.search);
+        const overrides = {};
+        [['workers', 'workerCount'], ['labelWorkers', 'labelWorkerCount'],
+         ['buffer', 'bufferPixels'], ['resolution', 'resolution'],
+         ['cache', 'maxCachedTiles']].forEach(function (pair) {
+          const value = params.get(pair[0]);
+          if (value !== null && value !== '') {
+            overrides[pair[1]] = Number(value);
+          }
+        });
+        return overrides;
+      }
+
+      // ONE shared provider: the style is parsed/applied once and every globe
+      // reuses the same composed tile bitmaps + label sets.
+      let sharedProvider = null;
+      function createOpenfreemapProvider() {
+        if (sharedProvider) {
+          return sharedProvider;
+        }
+        const overrides = urlOverrides();
+        if (Object.keys(overrides).length) {
+          console.log('[demo] profile overrides (URL):', JSON.stringify(overrides));
+        }
+        sharedProvider = new OlMapbox3DProvider(Object.assign({
+          style: 'https://tiles.openfreemap.org/styles/liberty',
+          workerUrl: 'lib/ol-mapbox-tile-worker.js',
+          labelWorkerUrl: 'lib/ol-mapbox-label-worker.js',
+          workerTimeout: 0,
+          log: false,
+          workerLog: false
+          // resolution / workerCount / maxConcurrency / maxCachedTiles are
+          // omitted on purpose: they are tuned by getDeviceProfile().
+        }, overrides));
+        populateFilter('tile-filter-select', sharedProvider);
+        populateFilter('label-filter-select', sharedProvider);
+        return sharedProvider;
+      }
+
+      // ---- Combo filters -----------------------------------------------------
+      // "tiles"  -> source-layer(s) drawn into the tile bitmaps.
+      // "labels" -> source-layer(s) returned as billboards ("no labels" = none).
+      function getSelectedTileFilter() {
+        const select = document.getElementById('tile-filter-select');
+        return select && select.value ? [select.value] : null;
+      }
+      function getSelectedLabelFilter() {
+        const select = document.getElementById('label-filter-select');
+        const value = select ? select.value : '';
+        return (!value || value === '__none__') ? null : [value];
+      }
+      function getSelectedLabelDisabled() {
+        const select = document.getElementById('label-filter-select');
+        return !!select && select.value === '__none__';
+      }
+
+      // The provider fetches the style JSON asynchronously: poll until the list
+      // of source-layers (mvt:layer) is known, then fill the combo.
+      function populateFilter(selectId, provider) {
+        const select = document.getElementById(selectId);
+        if (!select) {
+          return;
+        }
+        (function fill() {
+          if (!provider.sourceLayers || !provider.sourceLayers.length) {
+            setTimeout(fill, 250);
+            return;
+          }
+          provider.sourceLayers.forEach(function (name) {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+          });
+        })();
+      }
+
+      // Combos must ALWAYS invalidate the tiles: empty every cache we own
+      // (provider LRU + queued/in-flight worker requests + worker render state)
+      // so revisiting a zoom never shows stale tiles/labels. The browser's HTTP
+      // cache for the source MVT tiles is intentionally left alone.
+      function invalidateProvider() {
+        if (sharedProvider && typeof sharedProvider.invalidate === 'function') {
+          sharedProvider.invalidate();
+        }
+      }
+
+      // Same options for every engine — this is the whole OlMapbox3DGlobe
+      // constructor contract (see lib/ol-mapbox-globes.js + the per-engine
+      // adapter files under lib/ol-mapbox-additional-code-*.js).
+      function globeOptions(engine) {
+        // ?labelDrape=0 disables OpenGlobus label draping (labels sink back
+        // under the terrain); by default labels are re-positioned at the
+        // terrain height below them. ?labelDepthBias=0 disables the depth
+        // bias; positive/negative values tune how far the label text is
+        // pulled toward the camera on top of the draping.
+        const labelDepthBiasParam = new URLSearchParams(location.search).get('labelDepthBias');
+        const labelDepthBias = (labelDepthBiasParam === null || labelDepthBiasParam === '')
+          ? undefined : Number(labelDepthBiasParam);
+        return {
+          target: engine + '-globe',
+          provider: createOpenfreemapProvider(),
+          deviceProfile: deviceProfile,
+          tileFilter: getSelectedTileFilter,
+          labelFilter: getSelectedLabelFilter,
+          initialView: aostaCoordinates,
+          cesiumMap: openlayersMap,
+          labelDepthBias: labelDepthBias
+        };
+      }
+
+      function setTerrainButton(name, enabled) {
+        document.getElementById('activate-' + name + '-terrain').disabled = !enabled;
+      }
+
+      // ---- Combo listeners ---------------------------------------------------
+      document.getElementById('label-filter-select').addEventListener('change', function () {
+        const disabled = getSelectedLabelDisabled();
+        const layers = getSelectedLabelFilter();
+        invalidateProvider();
+        // Line labels (street names) are baked INTO the tile bitmap by
+        // ol-mapbox-style, so the tile imagery must honour the label filter too.
+        if (sharedProvider && typeof sharedProvider.setLabelBake === 'function') {
+          sharedProvider.setLabelBake(layers, !disabled);
+        }
+        [giro3dState, cesiumState, openglobusState].forEach(function (state) {
+          if (!state) {
+            return;
+          }
+          if (state.labelLayer) {
+            state.labelLayer.setEnabled(!disabled);
+            if (!disabled) {
+              state.labelLayer.setLayers(layers);
+              if (typeof state.refreshLabels === 'function') {
+                state.refreshLabels();
+              }
+            }
+          }
+          if (typeof state.setTileFilter === 'function') {
+            state.setTileFilter(getSelectedTileFilter());
+          }
+        });
+      });
+
+      document.getElementById('tile-filter-select').addEventListener('change', function () {
+        const layers = getSelectedTileFilter();
+        invalidateProvider();
+        [giro3dState, cesiumState, openglobusState].forEach(function (state) {
+          if (state && typeof state.setTileFilter === 'function') {
+            state.setTileFilter(layers);
+          }
+        });
+      });
+
+      // ---- Globe activation --------------------------------------------------
+      // Tiles + labels are fetched and drawn by the shared pipeline; the
+      // terrain buttons below just drape the imagery on a DTM and enable the
+      // sun-based hillshade ("shadows" for decoration).
+      function activateGlobe(engine) {
+        return OlMapbox3DGlobe.create(engine, globeOptions(engine)).then(function (state) {
+          if (engine === 'giro3d') {
+            giro3dState = state;
+          } else if (engine === 'cesium') {
+            cesiumState = state;
+          } else {
+            openglobusState = state;
+          }
+          setTerrainButton(engine, true);
+        });
+      }
+
+      function activateTerrain(engine) {
+        const state = engine === 'giro3d' ? giro3dState :
+          engine === 'cesium' ? cesiumState : openglobusState;
+        return OlMapbox3DGlobe.activateTerrain(engine, state, globeOptions(engine))
+          .then(function (newState) {
+            // OpenGlobus rebuilds its globe with the terrain in the constructor.
+            if (engine === 'openglobus') {
+              openglobusState = newState;
+            }
+          });
+      }
+
+      ['giro3d', 'cesium', 'openglobus'].forEach(function (engine) {
+        document.getElementById('activate-' + engine).addEventListener('click', function () {
+          const already = engine === 'giro3d' ? giro3dState :
+            engine === 'cesium' ? cesiumState : openglobusState;
+          if (already) {
+            return;
+          }
+          activateGlobe(engine).catch(function (error) {
+            console.error('Unable to initialize the ' + engine + ' globe.', error);
+            if (engine === 'giro3d') {
+              giro3dState = null;
+            } else if (engine === 'cesium') {
+              cesiumState = null;
+            } else {
+              openglobusState = null;
+            }
+          });
+        });
+        document.getElementById('activate-' + engine + '-terrain').addEventListener('click', function () {
+          activateTerrain(engine).catch(function (error) {
+            console.error('Unable to activate the ' + engine + ' terrain.', error);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ol-mapbox-providers — Cesium</title>
+    <style>
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #0a3b59;
+        overflow: hidden;
+      }
+      #globe {
+        width: 100%;
+        height: 100%;
+        /* Cesium/ol-cesium position their canvas absolutely; make #globe the
+           containing block so the canvas never covers the header above it. */
+        position: relative;
+        overflow: hidden;
+      }
+      /* ol-cesium wraps an ol.Map; keep the ol canvas off-screen (1px, hidden). */
+      #ol2d {
+        position: absolute;
+        left: -10000px;
+        top: 0;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      .badge {
+        position: absolute;
+        z-index: 2;
+        bottom: 12px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 6px 12px;
+        background: rgba(22, 52, 61, 0.9);
+        color: #fff;
+        font: 600 13px "Segoe UI", sans-serif;
+        pointer-events: none;
+      }
+      .terrain-toggle {
+        position: absolute;
+        z-index: 3;
+        top: 12px;
+        right: 12px;
+        padding: 6px 12px;
+        border: 1px solid #506b73;
+        border-radius: 3px;
+        background: rgba(22, 52, 61, 0.9);
+        color: #fff;
+        font: 600 13px "Segoe UI", sans-serif;
+        cursor: pointer;
+      }
+      .terrain-toggle:hover {
+        background: rgba(35, 70, 84, 0.95);
+      }
+      .terrain-toggle:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ol2d"></div>
+    <div id="globe"></div>
+    <button id="terrain-toggle" class="terrain-toggle" type="button" disabled>activate 3d terrain</button>
+    <div class="badge">cesium</div>
+
+    <script src="lib/ol/ol.js"></script>
+    <script>window.CESIUM_BASE_URL = 'lib/cesium/';</script>
+    <script src="lib/cesium/Cesium.js"></script>
+    <script src="lib/cesium/olcesium.js"></script>
+    <script src="lib/ol-mapbox-3d-provider.js"></script>
+    <script src="lib/ol-mapbox-globes.js"></script>
+    <script src="lib/ol-mapbox-additional-code-cesium.js"></script>
+
+    <script>
+      (function () {
+        // One provider = the style is parsed/applied once and reused for tiles
+        // and labels. The heavy lifting happens in web workers.
+        const provider = new OlMapbox3DProvider({
+          style: 'https://tiles.openfreemap.org/styles/liberty',
+          workerUrl: 'lib/ol-mapbox-tile-worker.js',
+          labelWorkerUrl: 'lib/ol-mapbox-label-worker.js',
+          log: false,
+          workerLog: false
+        });
+
+        // ol-cesium needs an ol.Map to wrap (the globe syncs its view to it).
+        // No layers are synced — the styled imagery comes from the provider.
+        const olMap = new ol.Map({
+          target: 'ol2d',
+          view: new ol.View({
+            center: ol.proj.fromLonLat([7.3203, 45.7378]),
+            zoom: 10
+          })
+        });
+
+        // Same options for create() and activateTerrain()/deactivateTerrain().
+        const options = {
+          target: 'globe',
+          provider: provider,
+          deviceProfile: OlMapbox3DProvider.getDeviceProfile(),
+          initialView: [7.3203, 45.7378], // [lon, lat] — Aosta valley, Italy
+          cesiumMap: olMap
+        };
+
+        let state = null;
+        let terrainOn = false;
+        const terrainButton = document.getElementById('terrain-toggle');
+        function setTerrainButton() {
+          terrainButton.textContent = terrainOn
+            ? 'deactivate 3d terrain'
+            : 'activate 3d terrain';
+        }
+        terrainButton.addEventListener('click', function () {
+          if (!state) {
+            return;
+          }
+          const toggle = terrainOn
+            ? OlMapbox3DGlobe.deactivateTerrain
+            : OlMapbox3DGlobe.activateTerrain;
+          toggle('cesium', state, options).then(function (next) {
+            if (next) {
+              state = next; // OpenGlobus returns a recreated globe
+              window.cesium = next; // keep the console handle in sync
+            }
+            terrainOn = !terrainOn;
+            setTerrainButton();
+          }).catch(function (error) {
+            console.error('Unable to toggle the Cesium terrain.', error);
+          });
+        });
+
+        OlMapbox3DGlobe.create('cesium', options).then(function (s) {
+          state = s;
+          window.cesium = s; // handy handle for the console
+          terrainButton.disabled = false;
+        }).catch(function (error) {
+          console.error('Unable to initialize the Cesium globe.', error);
+        });
+      })();
+    </script>
+  </body>
+</html>
