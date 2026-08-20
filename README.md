@@ -1,6 +1,6 @@
 # ol-mapbox-3d-provider
 
-Render a Mapbox/MapLibre style on 3D globes — **Giro3D**, **Cesium** and
+Render a Mapbox/MapLibre style, with Openlayers, on 3D globes — **Giro3D**, **Cesium** and
 **OpenGlobus** — with one shared, worker-based pipeline.
 
 <img width="1366" height="632" alt="image" src="https://github.com/user-attachments/assets/2fb3c3ba-4402-41d7-b652-e701b40eec2b" />
