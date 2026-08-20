@@ -63,31 +63,31 @@ globe's job.
 
 ## File structure
 
-full demo: ol 2d + the three globes side by side
+- full demo: ol 2d + the three globes side by side
 
 https://andreaordonselli.github.io/ol-mapbox-3d-provider/index.html
 
-minimal Giro3D example
+- minimal Giro3D example
 
 https://andreaordonselli.github.io/ol-mapbox-3d-provider/giro3d.html
 
-minimal Cesium example
+- minimal Cesium example
 
 https://andreaordonselli.github.io/ol-mapbox-3d-provider/cesium.html
 
-minimal OpenGlobus example
+- minimal OpenGlobus example
 
 https://andreaordonselli.github.io/ol-mapbox-3d-provider/openglobus.html
 
-Giro3D example with tiles/labels filter combos
+- Giro3D example with tiles/labels filter combos
 
 https://andreaordonselli.github.io/ol-mapbox-3d-provider/giro3d_custom.html
 
-Cesium example with tiles/labels filter combos
+- Cesium example with tiles/labels filter combos
 
 https://andreaordonselli.github.io/ol-mapbox-3d-provider/cesium_custom.html
 
-OpenGlobus example with tiles/labels filter combos
+- OpenGlobus example with tiles/labels filter combos
 
 https://andreaordonselli.github.io/ol-mapbox-3d-provider/openglobus_custom.html
 
