@@ -1,4 +1,4 @@
-# ol-mapbox-provider
+# ol-mapbox-3d-provider
 
 Render a Mapbox/MapLibre style on 3D globes — **Giro3D**, **Cesium** and
 **OpenGlobus** — with one shared, worker-based pipeline.
