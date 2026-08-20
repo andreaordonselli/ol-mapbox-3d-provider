@@ -245,18 +245,6 @@ Each file has a header comment with the prerequisites, the exact
 usage example. It registers itself into the shared core with
 `OlMapbox3DGlobe.register(...)` and contains only that engine's code.
 
-## GitHub Pages
-
-You can publish the site from the **root of the repository** — no need to move
-the examples into a subfolder:
-
-1. In the repository, go to **Settings → Pages**.
-2. Under **Build and deployment → Source**, choose **Deploy from a branch**.
-3. Select your default branch and the **`/ (root)`** folder.
-
-All paths in the examples are relative (`lib/...`), so the site works both at
-the repository root on Pages and under any local static server.
-
 ## Notes and limitations
 
 - The examples fetch tiles and styles from the public OpenFreeMap and Re:Earth
